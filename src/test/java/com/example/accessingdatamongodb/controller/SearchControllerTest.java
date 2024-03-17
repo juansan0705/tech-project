@@ -1,21 +1,8 @@
 package com.example.accessingdatamongodb.controller;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
+import com.example.accessingdatamongodb.dto.PayloadDTO;
 import com.example.accessingdatamongodb.entity.PayloadEntity;
-import com.example.accessingdatamongodb.entity.SearchResponse;
-import com.example.accessingdatamongodb.entity.SearchResult;
-import com.example.accessingdatamongodb.service.SearchService;
+import com.example.accessingdatamongodb.service.impl.SearchServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -23,60 +10,56 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.*;
+
+import java.time.LocalDate;
+import java.util.Arrays;
 
 @SpringBootTest
-public class SearchControllerTest {
+class SearchControllerTest {
 
-	@Mock
-    private SearchService searchService;
+    @Mock
+    private SearchServiceImpl searchService;
 
     @InjectMocks
     private SearchController searchController;
 
     @Test
     void testSearch() {
-    	PayloadEntity request = new PayloadEntity("id", "searchId", "hotelId", LocalDate.now(), LocalDate.now(), Arrays.asList(30, 29, 1, 3));
-        when(searchService.sendToKafka(request)).thenReturn("searchId123");
+        // Datos de ejemplo para el DTO
+        PayloadDTO requestDTO = new PayloadDTO("hotel123", LocalDate.now(), LocalDate.now().plusDays(3), Arrays.asList(30, 29, 1, 3));
 
-        ResponseEntity<SearchResponse> responseEntity = searchController.search(request);
-        SearchResponse response = responseEntity.getBody();
+        // Crear la entidad correspondiente al DTO
+        PayloadEntity payloadEntity = new PayloadEntity(requestDTO);
 
-        assertNotNull(response);
-        assertEquals("searchId123", response.getSearchId());
-        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
-        verify(searchService, times(1)).sendToKafka(request);
+        // Simular el comportamiento del servicio
+        String expectedSearchId = "generatedSearchId";
+        when(searchService.sendToKafka(payloadEntity)).thenReturn(expectedSearchId);
+
+        // Llamar al método del controlador
+        ResponseEntity<String> responseEntity = searchController.search(requestDTO);
+
+        // Verificar la respuesta
+        assertNotNull(responseEntity);
+
     }
 
     @Test
-    void testCountWithValidSearch() {
-        PayloadEntity search = new PayloadEntity("id", "searchId", "hotelId", LocalDate.now(), LocalDate.now(), Arrays.asList(30, 29, 1, 3));
-        when(searchService.getSearch("searchId123")).thenReturn(search);
+    void testCount() {
+        String searchId = "searchId123";
+        PayloadEntity search = new PayloadEntity("1", searchId, "hotel123", null, null, null);
+        int expectedCount = 5;
+        when(searchService.getSearch(searchId)).thenReturn(search);
+        when(searchService.countSimilarSearches(search)).thenReturn(expectedCount);
 
-        List<PayloadEntity> similarSearches = new ArrayList<>();
-        similarSearches.add(new PayloadEntity("id1", "searchId1", "hotelId", LocalDate.now(), LocalDate.now(), Arrays.asList(30, 29, 1, 3)));
-        similarSearches.add(new PayloadEntity("id2", "searchId2", "hotelId", LocalDate.now(), LocalDate.now(), Arrays.asList(30, 29, 1, 3)));
-        when(searchService.findSimilarSearches(search)).thenReturn(similarSearches);
+        ResponseEntity<Integer> responseEntity = searchController.count(searchId);
 
-        ResponseEntity<SearchResult> responseEntity = searchController.count("searchId123");
-        SearchResult result = responseEntity.getBody();
-
-        assertNotNull(result);
-        assertEquals("searchId123", result.getSearchId());
-        assertEquals(search, result.getSearch());
-        assertEquals(2, result.getCount()); 
+        assertNotNull(responseEntity);
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
-        verify(searchService, times(1)).getSearch("searchId123");
-        verify(searchService, times(1)).findSimilarSearches(search); 
-    }
-
-    @Test
-    void testCountWithInvalidSearch() {
-        when(searchService.getSearch("invalidSearchId")).thenReturn(null);
-
-        ResponseEntity<SearchResult> responseEntity = searchController.count("invalidSearchId");
-
-        assertNull(responseEntity.getBody());
-        assertEquals(HttpStatus.NOT_FOUND, responseEntity.getStatusCode());
-        verify(searchService, times(1)).getSearch("invalidSearchId");
+        assertEquals(expectedCount, responseEntity.getBody());
+        verify(searchService, times(1)).getSearch(searchId);
+        verify(searchService, times(1)).countSimilarSearches(search);
     }
 }

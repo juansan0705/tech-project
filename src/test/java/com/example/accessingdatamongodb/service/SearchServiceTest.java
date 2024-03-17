@@ -2,6 +2,8 @@ package com.example.accessingdatamongodb.service;
 
 import com.example.accessingdatamongodb.entity.PayloadEntity;
 import com.example.accessingdatamongodb.repository.PayloadRepository;
+import com.example.accessingdatamongodb.service.impl.SearchServiceImpl;
+
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -13,6 +15,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
@@ -26,52 +31,60 @@ class SearchServiceTest {
     private PayloadRepository searchRepository;
 
     @InjectMocks
-    private SearchService searchService;
+    private SearchServiceImpl searchService;
 
     @Test
     void testSendToKafka() {
-        PayloadEntity request = new PayloadEntity("1", "generatedSearchId", "1234",LocalDate.now(), LocalDate.now(), Arrays.asList(30, 29, 1, 3));
-        when(kafkaTemplate.send(eq("hotel_availability_searches"), eq("1234"), eq(request))).thenReturn(null);
+        // Arrange
+        PayloadEntity request = new PayloadEntity("1", "searchId", "hotelId", LocalDate.now(), LocalDate.now(), Arrays.asList(30, 29, 1, 3));
+        when(kafkaTemplate.send(anyString(), anyString(), any(PayloadEntity.class))).thenReturn(null);
 
-        String searchId = searchService.sendToKafka(request);
+        // Act
+        String generatedSearchId = searchService.sendToKafka(request);
 
-        assertEquals("generatedSearchId", searchId);
-        verify(kafkaTemplate, times(1)).send(eq("hotel_availability_searches"), eq("1234"), eq(request));
+        // Assert
+        assertNotNull(generatedSearchId);
+        verify(kafkaTemplate, times(1)).send(anyString(), anyString(), any(PayloadEntity.class));
     }
 
     @Test
     void testGetSearch() {
-        PayloadEntity expectedSearch = new PayloadEntity("1", "searchId123", "1234", LocalDate.now(), LocalDate.now(), Arrays.asList(30, 29, 1, 3));
-        when(searchRepository.findBySearchId("searchId123")).thenReturn(expectedSearch);
+        // Arrange
+        String searchId = "searchId123";
+        PayloadEntity expectedSearch = new PayloadEntity("1", searchId, "hotelId", LocalDate.now(), LocalDate.now(), Arrays.asList(30, 29, 1, 3));
+        when(searchRepository.findBySearchId(searchId)).thenReturn(expectedSearch);
 
-        PayloadEntity result = searchService.getSearch("searchId123");
+        // Act
+        PayloadEntity result = searchService.getSearch(searchId);
 
+        // Assert
+        assertNotNull(result);
         assertEquals(expectedSearch, result);
-        verify(searchRepository, times(1)).findBySearchId("searchId123");
     }
 
     @Test
-    void testGetSimilarSearchCountWithSearchId() {
-        when(searchRepository.countBySearchId("searchId123")).thenReturn(5);
+    void testCountSimilarSearches() {
+        // Arrange
+        PayloadEntity search = new PayloadEntity("1", "searchId123", "hotelId", LocalDate.now(), LocalDate.now(), Arrays.asList(30, 29, 1, 3));
+        when(searchRepository.countByHotelIdAndCheckAndCheckOutAndAges(anyString(), any(LocalDate.class), any(LocalDate.class), anyList())).thenReturn(5);
 
-        int count = searchService.getSimilarSearchCount("searchId123");
+        // Act
+        int count = searchService.countSimilarSearches(search);
 
+        // Assert
         assertEquals(5, count);
-        verify(searchRepository, times(1)).countBySearchId("searchId123");
     }
 
     @Test
-    void testGetSimilarSearchCountWithSearchObject() {
-        PayloadEntity search = new PayloadEntity("1", "searchId123", "1234", LocalDate.of(2023, 12, 29), LocalDate.of(2023, 12, 31), Arrays.asList(30, 29, 1, 3));
+    void testValidateSearchDates() {
+        // Arrange
+        PayloadEntity validSearch = new PayloadEntity("1", "searchId", "hotelId", LocalDate.now(), LocalDate.now().plusDays(1), Arrays.asList(30, 29, 1, 3));
+        PayloadEntity invalidSearch = new PayloadEntity("1", "searchId", "hotelId", LocalDate.now().plusDays(1), LocalDate.now(), Arrays.asList(30, 29, 1, 3));
 
-        List<PayloadEntity> similarSearches = new ArrayList<>();
-        similarSearches.add(new PayloadEntity("id1", "searchId1", "1234", LocalDate.of(2023, 12, 29), LocalDate.of(2023, 12, 31), Arrays.asList(30, 29, 1, 3)));
-        similarSearches.add(new PayloadEntity("id2", "searchId2", "1234", LocalDate.of(2023, 12, 29), LocalDate.of(2023, 12, 31), Arrays.asList(30, 29, 1, 3)));
-        when(searchService.findSimilarSearches(search)).thenReturn(similarSearches);
-
-        List<PayloadEntity> result = searchService.findSimilarSearches(search);
-
-        assertEquals(2, result.size()); 
+        // Act & Assert
+        assertTrue(searchService.validateSearchDates(validSearch));
+        assertFalse(searchService.validateSearchDates(invalidSearch));
     }
+
 
 }

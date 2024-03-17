@@ -13,6 +13,9 @@ public interface PayloadRepository extends MongoRepository<PayloadEntity, String
     
     PayloadEntity findBySearchId(String searchId); 
     
+    @Query(value = "{ 'hotelId' : ?0, 'checkIn' : ?1, 'checkOut' : ?2, 'ages' : { $in: ?3 } }", count = true)
+    int countByHotelIdAndCheckAndCheckOutAndAges(String hotelId, LocalDate checkIn, LocalDate checkOut, List<Integer> ages);
+    
     @Query("{ 'hotelId' : ?0, 'checkIn' : ?1, 'checkOut' : ?2, 'ages' : { $in: ?3 } }")
     List<PayloadEntity> findSimilarSearches(String hotelId, LocalDate checkIn, LocalDate checkOut, List<Integer> ages);
     
