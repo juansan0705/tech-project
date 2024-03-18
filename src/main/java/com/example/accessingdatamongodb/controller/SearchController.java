@@ -1,14 +1,10 @@
 package com.example.accessingdatamongodb.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import com.example.accessingdatamongodb.dto.PayloadDTO;
 import com.example.accessingdatamongodb.entity.PayloadEntity;
-import com.example.accessingdatamongodb.entity.SearchResponse;
-import com.example.accessingdatamongodb.entity.SearchResult;
 import com.example.accessingdatamongodb.service.impl.SearchServiceImpl;
 
 @RestController
