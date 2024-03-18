@@ -1,0 +1,14 @@
+spring:
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: my_database
+
+server:
+  port: 8080
+
+logging:
+  level:
+    root: INFO
+    com.example: DEBUG

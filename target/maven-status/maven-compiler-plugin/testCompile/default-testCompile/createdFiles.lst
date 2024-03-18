@@ -1,0 +1,3 @@
+com\example\accessingdatamongodb\AxpeApplicationTest.class
+com\example\accessingdatamongodb\controller\SearchControllerTest.class
+com\example\accessingdatamongodb\service\SearchServiceTest.class
